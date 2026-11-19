@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OLED Studio</title>
+<style>
+:root{color-scheme:dark;--bg:#101318;--panel:#191f27;--line:#303a46;--text:#edf2f7;--muted:#9aa8b7;--accent:#75e0bd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,Segoe UI,sans-serif}
+header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:20px;margin:0}header small{color:var(--muted)}
+main{max-width:1250px;margin:auto;padding:20px;display:grid;grid-template-columns:270px minmax(280px,1fr) 270px;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px}
+h2{font-size:15px;margin:0 0 13px}label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
+select,input,button{font:inherit;color:var(--text);background:#11171d;border:1px solid var(--line);border-radius:8px;padding:9px;width:100%}
+button{cursor:pointer;background:#26343b}button.primary{background:#176b56;border-color:#23896e}
+button:hover{filter:brightness(1.15)}.tools{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.stage{display:flex;align-items:center;justify-content:center;min-height:390px;background:#090c0f;border:1px solid var(--line);border-radius:12px;padding:18px;overflow:auto}
+canvas{width:min(100%,768px);height:auto;image-rendering:pixelated;background:#000;border:1px solid #53616d;touch-action:none}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.row{display:flex;gap:8px}.row>*{flex:1}
+.metric{background:#11171d;border:1px solid var(--line);border-radius:9px;padding:10px;margin:8px 0}
+.metric strong{font-size:18px;display:block}.bar{height:8px;background:#303a46;border-radius:8px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--accent);width:0}
+.status{font-size:12px;color:var(--muted);margin-top:8px}.actions{display:grid;gap:8px;margin-top:14px}
+footer{max-width:1250px;margin:0 auto;padding:0 20px 24px;color:var(--muted);font-size:12px}
+@media(max-width:900px){main{grid-template-columns:1fr}.stage{min-height:260px}}
+</style>
+</head>
+<body>
+<header><div><h1>OLED Studio</h1><small>Editor de píxeles y prototipo de configuración OLED</small></div><small>Versión inicial · 0.1</small></header>
+<main>
+<section class="panel">
+<h2>Configuración de pantalla</h2>
+<label for="resolution">Resolución</label>
+<select id="resolution"><option value="128,64">128 × 64</option><option value="128,32">128 × 32</option><option value="64,48">64 × 48</option><option value="96,64">96 × 64</option></select>
+<label for="protocol">Comunicación</label><select id="protocol"><option>I2C</option><option>SPI</option></select>
+<label for="driver">Controlador</label><select id="driver"><option>SSD1306</option><option>SH1106</option><option>SSD1309</option></select>
+<label for="pixelColor">Color de píxel (vista previa)</label><select id="pixelColor"><option value="#ffffff">Blanco</option><option value="#55cfff">Azul</option><option value="#ffe45c">Amarillo</option><option value="#63e6a5">Verde</option></select>
+<label for="scale">Zoom de cuadrícula</label><select id="scale"><option value="1">Normal</option><option value="2">Grande</option><option value="4">Muy grande</option></select>
+<p class="note">El color solo cambia la apariencia de la vista previa. No convierte un panel monocromático en RGB.</p>
+</section>
+<section class="panel">
+<h2>Editor</h2>
+<div class="stage"><canvas id="screen" width="128" height="64" aria-label="Lienzo OLED"></canvas></div>
+<div class="row" style="margin-top:10px"><button id="clear">Limpiar</button><button id="invert">Invertir</button><button id="download" class="primary">Exportar PNG</button></div>
+<label>Herramientas</label><div class="tools"><button data-tool="pen" class="primary">Lápiz</button><button data-tool="erase">Borrador</button><button data-tool="line">Línea</button><button data-tool="rect">Rectángulo</button></div>
+<p class="note">Dibuja arrastrando sobre la pantalla. Las herramientas de línea y rectángulo se completan al soltar el ratón.</p>
+</section>
+<aside class="panel">
+<h2>Placa de desarrollo</h2>
+<label for="board">Seleccionar placa</label><select id="board"><option value="uno">Arduino UNO R3</option><option value="nano">Arduino Nano clásico</option><option value="mega">Arduino Mega 2560</option><option value="leonardo">Arduino Leonardo</option><option value="esp32">ESP32 DevKit</option><option value="c3">ESP32-C3</option></select>
+<div class="metric"><span class="note">Flash de la placa</span><strong id="flash">32 KB</strong><div class="bar"><i id="flashbar"></i></div><span id="flashused" class="status">Estimación inicial: pendiente</span></div>
+<div class="metric"><span class="note">RAM / SRAM</span><strong id="ram">2 KB</strong><span class="status" id="ramnote">La RAM real depende del programa.</span></div>
+<div class="status" id="warning">Selecciona una placa para consultar sus límites.</div>
+<div class="actions"><button id="exportCode" class="primary">Descargar ejemplo Arduino</button><button id="saveProject">Guardar proyecto JSON</button><label for="loadProject">Abrir proyecto JSON</label><input id="loadProject" type="file" accept=".json,application/json"></div>
+<p class="note">El uso de memoria mostrado es una estimación orientativa, no una compilación. Para conocer el tamaño real hay que compilar el sketch con el core y las bibliotecas correspondientes.</p>
+</aside>
+</main>
+<footer>OLED Studio es un prototipo local. La exportación de código genera una base para SSD1306; revisa pines, librerías y compatibilidad antes de cargarla a tu placa.</footer>
+<script>
+const canvas=document.getElementById('screen'),ctx=canvas.getContext('2d');
+let pixels=[],tool='pen',drawing=false,start=null,snapshot=null;
+const boards={uno:{flash:32,ram:2},nano:{flash:32,ram:2},mega:{flash:256,ram:8},leonardo:{flash:32,ram:2.5},esp32:{flash:4096,ram:520},c3:{flash:4096,ram:400}};
+function dims(){return document.getElementById('resolution').value.split(',').map(Number)}
+function resetPixels(){let [w,h]=dims();canvas.width=w;canvas.height=h;pixels=Array.from({length:h},()=>Array(w).fill(0));draw()}
+function draw(){let [w,h]=dims(),color=document.getElementById('pixelColor').value;ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);ctx.fillStyle=color;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(pixels[y][x])ctx.fillRect(x,y,1,1)}
+function pos(e){let r=canvas.getBoundingClientRect(),[w,h]=dims();return{x:Math.max(0,Math.min(w-1,Math.floor((e.clientX-r.left)*w/r.width))),y:Math.max(0,Math.min(h-1,Math.floor((e.clientY-r.top)*h/r.height)))}}
+function put(p,v=1){pixels[p.y][p.x]=v}
+function line(a,b,v=1){let dx=Math.abs(b.x-a.x),sx=a.x<b.x?1:-1,dy=-Math.abs(b.y-a.y),sy=a.y<b.y?1:-1,err=dx+dy;while(true){put(a,v);if(a.x===b.x&&a.y===b.y)break;let e=2*err;if(e>=dy){err+=dy;a.x+=sx}if(e<=dx){err+=dx;a.y+=sy}}}
+function rect(a,b){let x1=Math.min(a.x,b.x),x2=Math.max(a.x,b.x),y1=Math.min(a.y,b.y),y2=Math.max(a.y,b.y);for(let x=x1;x<=x2;x++){put({x,y:y1});put({x,y:y2})}for(let y=y1;y<=y2;y++){put({x:x1,y});put({x:x2,y})}}
+canvas.addEventListener('pointerdown',e=>{drawing=true;start=pos(e);snapshot=pixels.map(r=>r.slice());if(tool==='pen'||tool==='erase')put(start,tool==='pen'?1:0);draw();canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!drawing)return;let p=pos(e);if(tool==='pen'||tool==='erase')put(p,tool==='pen'?1:0);else{pixels=snapshot.map(r=>r.slice());if(tool==='line')line({...start},{...p});if(tool==='rect')rect(start,p)}draw()});
+canvas.addEventListener('pointerup',()=>{drawing=false});
+document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('primary',x===b))});
+document.getElementById('resolution').onchange=resetPixels;
+document.getElementById('pixelColor').onchange=draw;
+document.getElementById('clear').onclick=()=>{pixels.forEach(r=>r.fill(0));draw()};
+document.getElementById('invert').onclick=()=>{pixels=pixels.map(r=>r.map(v=>1-v));draw()};
+document.getElementById('download').onclick=()=>{let a=document.createElement('a');a.download='oled-image.png';a.href=canvas.toDataURL('image/png');a.click()};
+function updateBoard(){let b=boards[document.getElementById('board').value];document.getElementById('flash').textContent=b.flash>=1024?(b.flash/1024)+' MB':b.flash+' KB';document.getElementById('ram').textContent=b.ram>=1024?(b.ram/1024)+' MB':b.ram+' KB';let [w,h]=dims(),bitmap=Math.ceil(w*h/8),rough=bitmap+8;let pct=Math.min(100,rough/(b.flash*1024)*100);document.getElementById('flashbar').style.width=pct+'%';document.getElementById('flashused').textContent='Bitmap: '+bitmap+' bytes · estimación mínima de datos';document.getElementById('warning').textContent='La imagen ocupa '+bitmap+' bytes sin compresión. El programa completo requiere memoria adicional.'}
+document.getElementById('board').onchange=updateBoard;document.getElementById('resolution').addEventListener('change',updateBoard);
+function bitmapBytes(){let [w,h]=dims(),out=[];for(let y=0;y<h;y+=8)for(let x=0;x<w;x++){let byte=0;for(let bit=0;bit<8&&y+bit<h;bit++)if(pixels[y+bit][x])byte|=1<<bit;out.push(byte)}return out}
+document.getElementById('exportCode').onclick=()=>{let [w,h]=dims(),bytes=bitmapBytes(),code=`// Ejemplo generado por OLED Studio\n// Requiere Adafruit GFX y Adafruit SSD1306\n#include <Wire.h>\n#include <Adafruit_GFX.h>\n#include <Adafruit_SSD1306.h>\n#define SCREEN_WIDTH ${w}\n#define SCREEN_HEIGHT ${h}\nAdafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);\nconst unsigned char imageBitmap[] PROGMEM = {\\n  ${bytes.join(', ')}\\n};\nvoid setup(){\\n  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);\\n  display.clearDisplay();\\n  display.drawBitmap(0, 0, imageBitmap, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);\\n  display.display();\\n}\\nvoid loop(){}\\n`;downloadText('oled_studio.ino',code)};
+function downloadText(name,text){let a=document.createElement('a'),u=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+document.getElementById('saveProject').onclick=()=>downloadText('oled-project.json',JSON.stringify({resolution:dims(),pixels,board:document.getElementById('board').value,protocol:document.getElementById('protocol').value,driver:document.getElementById('driver').value},null,2));
+document.getElementById('loadProject').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let d=JSON.parse(await f.text());document.getElementById('resolution').value=d.resolution.join(',');document.getElementById('board').value=d.board;document.getElementById('protocol').value=d.protocol;document.getElementById('driver').value=d.driver;resetPixels();pixels=d.pixels;draw();updateBoard()}catch{alert('No se pudo abrir el proyecto JSON.')}};
+resetPixels();updateBoard();
+</script>
+</body></html>
